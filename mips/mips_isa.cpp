@@ -39,11 +39,13 @@
 using namespace mips_parms;
 
 static int processors_started = 0;
+int count = 0;
 #define DEFAULT_STACK_SIZE (256*1024)
 
 //!Generic instruction behavior method.
 void ac_behavior( instruction )
 { 
+
   dbg_printf("----- PC=%#x ----- %lld\n", (int) ac_pc, ac_instr_counter);
   //  dbg_printf("----- PC=%#x NPC=%#x ----- %lld\n", (int) ac_pc, (int)npc, ac_instr_counter);
 #ifndef NO_NEED_PC_UPDATE
@@ -78,6 +80,8 @@ void ac_behavior(begin)
 //!Behavior called after finishing simulation
 void ac_behavior(end)
 {
+	dbg_printf("INSTRUCTION COUNT: %d\n", count);	
+
   dbg_printf("@@@ end behavior @@@\n");
 }
 
