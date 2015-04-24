@@ -32,4 +32,6 @@
 *.dSYM/
 
 local-tests
-
+mips/*.din
+d4-7/*.din
+MipsMibench/**/*.din
