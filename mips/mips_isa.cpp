@@ -24,6 +24,8 @@
 #include  "mips_isa_init.cpp"
 #include  "mips_bhv_macros.H"
 
+//Macro for enabling memory tracing
+#define TRACE
 
 //If you want debug information for this model, uncomment next line
 //#define DEBUG_MODEL
@@ -37,15 +39,40 @@
 // 'using namespace' statement to allow access to all
 // mips-specific datatypes
 using namespace mips_parms;
+using namespace std;
 
+#ifdef TRACE
+ofstream dinero_trace;
+#endif
 static int processors_started = 0;
-int count = 0;
+int instruction_count = 0;
 #define DEFAULT_STACK_SIZE (256*1024)
+
+
+
+void dinero_dump_read(int address)
+{
+  #ifdef TRACE
+  dinero_trace << "0 " << hex << address << endl;
+  #endif
+}
+
+void dinero_dump_write(int address)
+{
+  #ifdef TRACE
+  dinero_trace << "1 " << hex << address << endl;
+  #endif
+}
+
+void dinero_dump_fetch(int pc)
+{
+  dinero_trace << "2 " << hex << pc << endl;
+}
 
 //!Generic instruction behavior method.
 void ac_behavior( instruction )
 { 
-
+  dinero_dump_fetch(ac_pc);
   dbg_printf("----- PC=%#x ----- %lld\n", (int) ac_pc, ac_instr_counter);
   //  dbg_printf("----- PC=%#x NPC=%#x ----- %lld\n", (int) ac_pc, (int)npc, ac_instr_counter);
 #ifndef NO_NEED_PC_UPDATE
@@ -66,6 +93,11 @@ void ac_behavior(begin)
   RB[0] = 0;
   npc = ac_pc + 4;
 
+  //Opening file for tracing
+  #ifdef TRACE
+  dinero_trace.open("trace.din");
+  #endif 
+
   // Is is not required by the architecture, but makes debug really easier
   for (int regNum = 0; regNum < 32; regNum ++)
     RB[regNum] = 0;
@@ -80,10 +112,17 @@ void ac_behavior(begin)
 //!Behavior called after finishing simulation
 void ac_behavior(end)
 {
-	dbg_printf("INSTRUCTION COUNT: %d\n", count);	
+  dbg_printf("INSTRUCTION COUNT: %d\n", instruction_count);	
+
+  #ifdef TRACE
+  dbg_printf("closing trace file...\n");
+  dinero_trace.close();
+  #endif
 
   dbg_printf("@@@ end behavior @@@\n");
 }
+
+
 
 
 //!Instruction lb behavior method.
@@ -95,6 +134,7 @@ void ac_behavior( lb )
   dbg_printf("lb r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
   
   address = RB[rs] + imm;
+  dinero_dump_read(address);
   offset = address & 3;
   byte = (DM.read(address & ~3) >> ((3 - offset) * 8)) & 0xFF;
   RB[rt] = (ac_Sword)byte ;
@@ -110,6 +150,7 @@ void ac_behavior( lbu )
   
   dbg_printf("lbu r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
   address = RB[rs] + imm;
+  dinero_dump_read(address);
   offset = address & 3;
   byte = (DM.read(address & ~3) >> ((3 - offset) * 8)) & 0xFF;
   
@@ -125,6 +166,7 @@ void ac_behavior( lh )
   
   dbg_printf("lh r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
   address = RB[rs]+ imm;
+  dinero_dump_read(address);
   offset = (address & 3) >> 1;
   half = (DM.read(address & ~3) >> (1 - offset) * 16) & 0xFFFF;
   
@@ -140,6 +182,7 @@ void ac_behavior( lhu )
 
   dbg_printf("lhu r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
   address = RB[rs]+ imm;
+  dinero_dump_read(address);
   offset = (address & 3) >> 1;
   half = (DM.read(address & ~3) >> (1 - offset) * 16) & 0xFFFF;
   
@@ -197,6 +240,7 @@ void ac_behavior( sb )
   dbg_printf("sb r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
   
   address = RB[rs] + imm;
+  dinero_dump_write(address);
   offset_ammount = (3 - (address & 3)) * 8;
   byte = RB[rt] & 0xFF;
   data = DM.read(address & ~3) & ~(0xFF << offset_ammount) | (byte << offset_ammount); 
@@ -215,6 +259,7 @@ void ac_behavior( sh )
   dbg_printf("sh r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
   
   address = RB[rs] + imm;
+  dinero_dump_write(address);
   offset_ammount = (1 - ((address & 3) >> 1)) * 16;
   half = RB[rt] & 0xFFFF;
   data = DM.read(address & ~3) & ~(0xFFFF << offset_ammount) | (half << offset_ammount);
