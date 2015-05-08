@@ -1,0 +1,6 @@
+Makefile.archc
+main.cpp.tmpl
+mips.H
+mips.cpp
+mips.x
+mips_isa.H
