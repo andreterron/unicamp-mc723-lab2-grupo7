@@ -24,6 +24,8 @@
 #include  "mips_isa_init.cpp"
 #include  "mips_bhv_macros.H"
 
+#include "unordered_map"
+
 //Macro for enabling memory tracing
 #define TRACE
 
@@ -48,7 +50,67 @@ static int processors_started = 0;
 int instruction_count = 0;
 #define DEFAULT_STACK_SIZE (256*1024)
 
+class Instruction {
+public:
+	vector<int> reads;
+	vector<int> writes;
+}
 
+class superscalar_pipeline {
+public:
+	int number_of_functional_units, fetch_window_size;
+	int fetch_counter = 0;
+	unordered_map<int, int> regOwner;
+	unordered_map<int, int> falseRegOwner;
+	vector<Instruction> issue_buffer;
+	vector<Instruction> virtual_buffer;
+	max_issue_buffer_size;
+	number_of_live_funits = 0;
+	cycle_count = 0;
+
+	superscalar_pipeline (int num_funits, int fetch_size, int issue_buffer_size)
+	{
+		number_of_functional_units = num_funits;
+		max_issue_buffer_size = issue_buffer_size;
+		fetch_window_size = fetch_size;
+	}
+
+	void core_add_instruction (Instruction inst)
+	{
+		
+	}
+
+	void add_instruction (Instruction inst)
+	{
+		virtual_buffer.push_back(inst);
+
+		do
+		{
+			if (fetch_counter == 0)
+			{
+				cycle_count++;			
+				regOwner.clear();
+				falseRegOwner.clear();
+				issue_pending_instructions();
+			}
+
+			if (issue_buffer.size() + fetch_window_size > max_issue_buffer_size)
+				break;
+
+
+			//Adicionar controle de halt por preenchimento do issue buffer
+
+			Instruction pastInstruction = virtual_buffer.front();
+			issue_buffer.push_back(pastInstruction);
+			pastInstruction.erase(virtual_buffer.begin());
+
+			
+
+			fetch_counter = (fetch_counter + 1) % fetch_window_size;
+		}
+		while (virtual_buffer.size() > 0);
+	}
+};
 
 void dinero_dump_read(int address)
 {
@@ -95,7 +157,7 @@ void ac_behavior(begin)
 
   //Opening file for tracing
   #ifdef TRACE
-  dinero_trace.open("trace.din");
+  dinero_trace.open("/tmp/trace.din");
   #endif 
 
   // Is is not required by the architecture, but makes debug really easier
