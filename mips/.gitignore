@@ -1,3 +1,6 @@
+*.o
+*.swp
+*.swo
 Makefile.archc
 main.cpp.tmpl
 mips.H

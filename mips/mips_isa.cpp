@@ -24,6 +24,12 @@
 #include  "mips_isa_init.cpp"
 #include  "mips_bhv_macros.H"
 
+#include "prediction/PredictionOracle.cpp"
+#include "prediction/BranchPredictor.cpp"
+#include "prediction/StaticPredictor.cpp"
+#include "prediction/OneBitPredictor.cpp"
+#include "prediction/TwoBitPredictor.cpp"
+
 //Macro for enabling memory tracing
 #define TRACE
 
@@ -48,7 +54,7 @@ static int processors_started = 0;
 int instruction_count = 0;
 #define DEFAULT_STACK_SIZE (256*1024)
 
-
+static PredictionOracle gPrediction;
 
 void dinero_dump_read(int address)
 {
@@ -89,6 +95,11 @@ void ac_behavior( Type_J ){}
 //!Behavior called before starting simulation
 void ac_behavior(begin)
 {
+  gPrediction.AddPredictor("static_branch", new StaticPredictorBranch);
+  gPrediction.AddPredictor("static_nobranch", new StaticPredictorNoBranch);
+  gPrediction.AddPredictor("onebit", new OneBitPredictor);
+  gPrediction.AddPredictor("twobit", new TwoBitPredictor);
+
   dbg_printf("@@@ begin behavior @@@\n");
   RB[0] = 0;
   npc = ac_pc + 4;
@@ -701,72 +712,90 @@ void ac_behavior( jalr )
 void ac_behavior( beq )
 {
   dbg_printf("beq r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
+  bool branched = false;
   if( RB[rs] == RB[rt] ){
+    branched = true;
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2);
 #endif 
     dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
-  }	
+  }
+  gPrediction.Hit(branched);
 };
 
 //!Instruction bne behavior method.
 void ac_behavior( bne )
 {	
   dbg_printf("bne r%d, r%d, %d\n", rt, rs, imm & 0xFFFF);
+  bool branched = false;
   if( RB[rs] != RB[rt] ){
+    branched = true;
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2);
 #endif 
     dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
   }	
+  gPrediction.Hit(branched);
 };
 
 //!Instruction blez behavior method.
 void ac_behavior( blez )
 {
   dbg_printf("blez r%d, %d\n", rs, imm & 0xFFFF);
+  bool branched = false;
   if( (RB[rs] == 0 ) || (RB[rs]&0x80000000 ) ){
+    branched = true;
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2), 1;
 #endif 
     dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
   }	
+  gPrediction.Hit(branched);
 };
 
 //!Instruction bgtz behavior method.
 void ac_behavior( bgtz )
 {
   dbg_printf("bgtz r%d, %d\n", rs, imm & 0xFFFF);
+  bool branched = false;
   if( !(RB[rs] & 0x80000000) && (RB[rs]!=0) ){
+    branched = true;
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2);
 #endif 
     dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
   }	
+  gPrediction.Hit(branched);
 };
 
 //!Instruction bltz behavior method.
 void ac_behavior( bltz )
 {
   dbg_printf("bltz r%d, %d\n", rs, imm & 0xFFFF);
+  bool branched = false;
   if( RB[rs] & 0x80000000 ){
+    branched = true;
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2);
 #endif 
     dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
   }	
+  gPrediction.Hit(branched);
 };
 
 //!Instruction bgez behavior method.
 void ac_behavior( bgez )
 {
   dbg_printf("bgez r%d, %d\n", rs, imm & 0xFFFF);
+  bool branched = false;
   if( !(RB[rs] & 0x80000000) ){
+    branched = true;
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2);
 #endif 
     dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
   }	
+  gPrediction.Hit(branched);
 };
 
 //!Instruction bltzal behavior method.
@@ -774,12 +803,15 @@ void ac_behavior( bltzal )
 {
   dbg_printf("bltzal r%d, %d\n", rs, imm & 0xFFFF);
   RB[Ra] = ac_pc+4; //ac_pc is pc+4, we need pc+8
+  bool branched = false;
   if( RB[rs] & 0x80000000 ){
+    branched = true;
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2);
 #endif 
     dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
   }	
+  gPrediction.Hit(branched);
   dbg_printf("Return = %#x\n", ac_pc+4);
 };
 
@@ -788,12 +820,15 @@ void ac_behavior( bgezal )
 {
   dbg_printf("bgezal r%d, %d\n", rs, imm & 0xFFFF);
   RB[Ra] = ac_pc+4; //ac_pc is pc+4, we need pc+8
+  bool branched = false;
   if( !(RB[rs] & 0x80000000) ){
+    branched = true;
 #ifndef NO_NEED_PC_UPDATE
     npc = ac_pc + (imm<<2);
 #endif 
     dbg_printf("Taken to %#x\n", ac_pc + (imm<<2));
   }	
+  gPrediction.Hit(branched);
   dbg_printf("Return = %#x\n", ac_pc+4);
 };
 
