@@ -24,10 +24,6 @@
 #include  "mips_isa_init.cpp"
 #include  "mips_bhv_macros.H"
 
-#include "unordered_map"
-
-//Macro for enabling memory tracing
-#define TRACE
 
 //If you want debug information for this model, uncomment next line
 //#define DEBUG_MODEL
@@ -41,112 +37,115 @@
 // 'using namespace' statement to allow access to all
 // mips-specific datatypes
 using namespace mips_parms;
-using namespace std;
 
-#ifdef TRACE
-ofstream dinero_trace;
-#endif
-static int processors_started = 0;
-int instruction_count = 0;
-#define DEFAULT_STACK_SIZE (256*1024)
+#define PIPELINE_SIZE 5
+#define FIRST_PIPE 5
+#define SECOND_PIPE 7
+//struct that represents the one instruction with the information to detect hazard
+struct inst_hazard {
+	
+	int op;
+	bool write;
+	int r_write; //instruction always write in one of rt or rd
+ 	int pl_resolution; //in which is step the registor already have the answer
 
-class Instruction {
-public:
-	vector<int> reads;
-	vector<int> writes;
-}
+	inst_hazard(int _op,bool _write, int _r_write,int _pl_resolution):op(_op),write(_write),r_write(_r_write),pl_resolution(_pl_resolution){}
 
-class superscalar_pipeline {
-public:
-	int number_of_functional_units, fetch_window_size;
-	int fetch_counter = 0;
-	unordered_map<int, int> regOwner;
-	unordered_map<int, int> falseRegOwner;
-	vector<Instruction> issue_buffer;
-	vector<Instruction> virtual_buffer;
-	max_issue_buffer_size;
-	number_of_live_funits = 0;
-	cycle_count = 0;
-
-	superscalar_pipeline (int num_funits, int fetch_size, int issue_buffer_size)
-	{
-		number_of_functional_units = num_funits;
-		max_issue_buffer_size = issue_buffer_size;
-		fetch_window_size = fetch_size;
-	}
-
-	void core_add_instruction (Instruction inst)
-	{
-		
-	}
-
-	void add_instruction (Instruction inst)
-	{
-		virtual_buffer.push_back(inst);
-
-		do
-		{
-			if (fetch_counter == 0)
-			{
-				cycle_count++;			
-				regOwner.clear();
-				falseRegOwner.clear();
-				issue_pending_instructions();
-			}
-
-			if (issue_buffer.size() + fetch_window_size > max_issue_buffer_size)
-				break;
-
-
-			//Adicionar controle de halt por preenchimento do issue buffer
-
-			Instruction pastInstruction = virtual_buffer.front();
-			issue_buffer.push_back(pastInstruction);
-			pastInstruction.erase(virtual_buffer.begin());
-
-			
-
-			fetch_counter = (fetch_counter + 1) % fetch_window_size;
-		}
-		while (virtual_buffer.size() > 0);
-	}
 };
 
-void dinero_dump_read(int address)
-{
-  #ifdef TRACE
-  dinero_trace << "0 " << hex << address << endl;
-  #endif
-}
+#include <deque>
+#include <cstdlib>
+#include <time.h>
+std::deque<inst_hazard> v_inst;
 
-void dinero_dump_write(int address)
-{
-  #ifdef TRACE
-  dinero_trace << "1 " << hex << address << endl;
-  #endif
-}
 
-void dinero_dump_fetch(int pc)
-{
-  dinero_trace << "2 " << hex << pc << endl;
-}
+long long bubbles5 = 0;
+long long bubbles7 = 0;
+long long bubbles13 = 0;
+
+
+static int processors_started = 0;
+#define DEFAULT_STACK_SIZE (256*1024)
 
 //!Generic instruction behavior method.
 void ac_behavior( instruction )
 { 
-  dinero_dump_fetch(ac_pc);
   dbg_printf("----- PC=%#x ----- %lld\n", (int) ac_pc, ac_instr_counter);
   //  dbg_printf("----- PC=%#x NPC=%#x ----- %lld\n", (int) ac_pc, (int)npc, ac_instr_counter);
 #ifndef NO_NEED_PC_UPDATE
   ac_pc = npc;
   npc = ac_pc + 4;
 #endif 
+
+	//branch prediction fail
+	if (op >= 4  && op <=  7) {
+			//90% of accuarry in the branch predictor
+			if (rand()%100 +1 > 90){
+				bubbles5++;
+				bubbles7+=3;
+				bubbles13+=13;
+				return;
+			}
+			else{
+				bubbles13++;
+			}
+	}
+
+
 };
  
 //! Instruction Format behavior methods.
-void ac_behavior( Type_R ){}
-void ac_behavior( Type_I ){}
-void ac_behavior( Type_J ){}
+void ac_behavior( Type_R ){
+	
+	//load followed by R instruction
+	if (!v_inst.empty()) {	
+			inst_hazard inst = v_inst[0];
+			if (inst.op > 0 && inst.op < 8){
+				bubbles5++;
+				bubbles7+=2;
+				bubbles13+=1;
+			}
+	}
+
+	//mul followed by add and mul
+	if (!v_inst.empty()) {	
+			inst_hazard inst = v_inst[0];
+			if (inst.op == 24 && inst.op == 25){
+				if (op == 24 || op == 25 || op == 32 || op ==33 || op== 8 || op ==9) {
+					bubbles13+=2;		
+				}
+			}
+	}
+
+	inst_hazard inst(op,1,rd,4);
+  v_inst.push_front(inst);
+
+}
+void ac_behavior( Type_I ){
+	/*
+	for (int i = 0; i < PIPELINE_SIZE/2 ; ++i) {
+		if(v_inst.size() <= i) break;
+		inst_hazard inst = v_inst[i];
+		//if it uses the register that was written, and there is no possible forward
+		if (inst.write ==1 && inst.r_write == rt && inst.pl_resolution > 3+i){
+			bubbles5 += inst.pl_resolution - (3+i);
+		}
+	}
+	*/
+	inst_hazard inst2(op,1,rt,4);
+ 	v_inst.push_front(inst2);
+
+}
+void ac_behavior( Type_J ){
+
+	//every jump create a bubble
+	bubbles5++;
+	bubbles7++;
+	bubbles13++;
+
+	inst_hazard inst(op,0,0,0);
+ 	v_inst.push_front(inst);
+}
  
 //!Behavior called before starting simulation
 void ac_behavior(begin)
@@ -154,11 +153,6 @@ void ac_behavior(begin)
   dbg_printf("@@@ begin behavior @@@\n");
   RB[0] = 0;
   npc = ac_pc + 4;
-
-  //Opening file for tracing
-  #ifdef TRACE
-  dinero_trace.open("/tmp/trace.din");
-  #endif 
 
   // Is is not required by the architecture, but makes debug really easier
   for (int regNum = 0; regNum < 32; regNum ++)
@@ -168,23 +162,21 @@ void ac_behavior(begin)
 
   RB[29] =  AC_RAM_END - 1024 - processors_started++ * DEFAULT_STACK_SIZE;
 
-
 }
 
 //!Behavior called after finishing simulation
 void ac_behavior(end)
 {
-  dbg_printf("INSTRUCTION COUNT: %d\n", instruction_count);	
 
-  #ifdef TRACE
-  dbg_printf("closing trace file...\n");
-  dinero_trace.close();
-  #endif
+  if(v_inst.size()>PIPELINE_SIZE){
+		v_inst.pop_front();
+	}
 
+	printf("@@@ number of bubbles in 5 stage pipeline: %lli @@@\n", bubbles5);
+	printf("@@@ number of bubbles in 7 stage pipeline: %lli @@@\n", bubbles7);
+	printf("@@@ number of bubbles in 13 stage pipeline: %lli @@@\n", bubbles13);
   dbg_printf("@@@ end behavior @@@\n");
 }
-
-
 
 
 //!Instruction lb behavior method.
@@ -196,7 +188,6 @@ void ac_behavior( lb )
   dbg_printf("lb r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
   
   address = RB[rs] + imm;
-  dinero_dump_read(address);
   offset = address & 3;
   byte = (DM.read(address & ~3) >> ((3 - offset) * 8)) & 0xFF;
   RB[rt] = (ac_Sword)byte ;
@@ -212,7 +203,6 @@ void ac_behavior( lbu )
   
   dbg_printf("lbu r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
   address = RB[rs] + imm;
-  dinero_dump_read(address);
   offset = address & 3;
   byte = (DM.read(address & ~3) >> ((3 - offset) * 8)) & 0xFF;
   
@@ -228,7 +218,6 @@ void ac_behavior( lh )
   
   dbg_printf("lh r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
   address = RB[rs]+ imm;
-  dinero_dump_read(address);
   offset = (address & 3) >> 1;
   half = (DM.read(address & ~3) >> (1 - offset) * 16) & 0xFFFF;
   
@@ -244,7 +233,6 @@ void ac_behavior( lhu )
 
   dbg_printf("lhu r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
   address = RB[rs]+ imm;
-  dinero_dump_read(address);
   offset = (address & 3) >> 1;
   half = (DM.read(address & ~3) >> (1 - offset) * 16) & 0xFFFF;
   
@@ -302,7 +290,6 @@ void ac_behavior( sb )
   dbg_printf("sb r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
   
   address = RB[rs] + imm;
-  dinero_dump_write(address);
   offset_ammount = (3 - (address & 3)) * 8;
   byte = RB[rt] & 0xFF;
   data = DM.read(address & ~3) & ~(0xFF << offset_ammount) | (byte << offset_ammount); 
@@ -321,7 +308,6 @@ void ac_behavior( sh )
   dbg_printf("sh r%d, %d(r%d)\n", rt, imm & 0xFFFF, rs);
   
   address = RB[rs] + imm;
-  dinero_dump_write(address);
   offset_ammount = (1 - ((address & 3) >> 1)) * 16;
   half = RB[rt] & 0xFFFF;
   data = DM.read(address & ~3) & ~(0xFFFF << offset_ammount) | (half << offset_ammount);
