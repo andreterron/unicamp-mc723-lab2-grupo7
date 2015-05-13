@@ -115,7 +115,7 @@ public:
 		{
 			Instruction &inst = issue_buffer[i];
 
-			if (!inst.trulyDependsOfSomeone())	
+			if (!trulyDependsOfSomeone(inst))	
 			{
 				make_reg_owner(inst);	
 				issue_buffer.erase(issue_buffer.begin + i);
