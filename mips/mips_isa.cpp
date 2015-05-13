@@ -60,8 +60,8 @@ class superscalar_pipeline {
 public:
 	int number_of_functional_units, fetch_window_size;
 	int fetch_counter = 0;
-	unordered_map<int, int> regOwner;
-	unordered_map<int, int> falseRegOwner;
+	unordered_map<int, Instruction> readMap;
+	unordered_map<int, Instruction> writeMap;
 	vector<Instruction> issue_buffer;
 	vector<Instruction> virtual_buffer;
 	max_issue_buffer_size;
@@ -77,7 +77,52 @@ public:
 
 	void core_add_instruction (Instruction inst)
 	{
-		
+	}
+
+	bool trulyDependsOfSomeone(Instruction inst)
+	{
+		for (int pos: inst.reads)
+		{
+			if (writeMap.find(pos) != writeMap.end())
+				return true;
+		}
+		return false;
+	}
+
+	bool falselyDependsOfsomeone(Instruction inst)
+	{
+		for (int pos: inst.writes)
+		{
+			if (writeMap.find(pos) != writeMap.end())
+				return true;
+			if (readMap.find(pos) != readMap.end())
+				return true;
+		}
+		return false;	
+	}
+
+	void make_reg_owner(Instruction inst)
+	{
+		for (int pos: inst.reads)
+			readMap[pos] = inst;
+		for (int pos: inst.writes)
+			writeMap[pos] = inst;
+	}
+
+	void issue_pending_instructions()
+	{
+		for (int i = 0; i < issue_buffer.size(); )
+		{
+			Instruction &inst = issue_buffer[i];
+
+			if (!inst.trulyDependsOfSomeone())	
+			{
+				make_reg_owner(inst);	
+				issue_buffer.erase(issue_buffer.begin + i);
+			}
+			else
+				i++;
+		}
 	}
 
 	void add_instruction (Instruction inst)
@@ -89,22 +134,18 @@ public:
 			if (fetch_counter == 0)
 			{
 				cycle_count++;			
-				regOwner.clear();
-				falseRegOwner.clear();
+				readMap.clear();
+				writeMap.clear();
 				issue_pending_instructions();
+				if (issue_buffer.size() + fetch_window_size > max_issue_buffer_size)
+					break;
 			}
-
-			if (issue_buffer.size() + fetch_window_size > max_issue_buffer_size)
-				break;
-
 
 			//Adicionar controle de halt por preenchimento do issue buffer
 
 			Instruction pastInstruction = virtual_buffer.front();
 			issue_buffer.push_back(pastInstruction);
 			pastInstruction.erase(virtual_buffer.begin());
-
-			
 
 			fetch_counter = (fetch_counter + 1) % fetch_window_size;
 		}
@@ -144,9 +185,15 @@ void ac_behavior( instruction )
 };
  
 //! Instruction Format behavior methods.
-void ac_behavior( Type_R ){}
-void ac_behavior( Type_I ){}
-void ac_behavior( Type_J ){}
+void ac_behavior( Type_R )
+{
+}
+void ac_behavior( Type_I )
+{
+}
+void ac_behavior( Type_J )
+{
+}
  
 //!Behavior called before starting simulation
 void ac_behavior(begin)

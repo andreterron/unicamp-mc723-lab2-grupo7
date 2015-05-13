@@ -37,7 +37,7 @@ OPT :=   -O3
 
 DEBUG :=   -g
 
-OTHER :=   -Wno-deprecated
+OTHER :=  --std=c++11 -Wno-deprecated
 
 CFLAGS := $(DEBUG) $(OPT) $(OTHER) 
 
