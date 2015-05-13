@@ -24,13 +24,17 @@
 #include  "mips_isa_init.cpp"
 #include  "mips_bhv_macros.H"
 
-#include "unordered_map"
+#include <unordered_map>
+#include <deque>
 
 //Macro for enabling memory tracing
-#define TRACE
+//#define TRACE
+
+//Macro for enabling superscalar pipeline simulation
+#define SUPERSCALAR
 
 //If you want debug information for this model, uncomment next line
-//#define DEBUG_MODEL
+#define DEBUG_MODEL
 #include "ac_debug_model.H"
 
 
@@ -54,19 +58,19 @@ class Instruction {
 public:
 	vector<int> reads;
 	vector<int> writes;
-}
+};
 
 class superscalar_pipeline {
 public:
 	int number_of_functional_units, fetch_window_size;
 	int fetch_counter = 0;
+	int max_issue_buffer_size;
+	int cycle_count = 0;
+	int number_of_live_funits = 0;
 	unordered_map<int, Instruction> readMap;
 	unordered_map<int, Instruction> writeMap;
-	vector<Instruction> issue_buffer;
-	vector<Instruction> virtual_buffer;
-	max_issue_buffer_size;
-	number_of_live_funits = 0;
-	cycle_count = 0;
+	deque<Instruction> issue_buffer;
+	deque<Instruction> virtual_buffer;
 
 	superscalar_pipeline (int num_funits, int fetch_size, int issue_buffer_size)
 	{
@@ -111,14 +115,17 @@ public:
 
 	void issue_pending_instructions()
 	{
-		for (int i = 0; i < issue_buffer.size(); )
+		number_of_live_funits = 0;
+
+		for (int i = 0; i < issue_buffer.size() && number_of_live_funits < number_of_functional_units; )
 		{
 			Instruction &inst = issue_buffer[i];
 
 			if (!trulyDependsOfSomeone(inst))	
 			{
+				number_of_live_funits++;
 				make_reg_owner(inst);	
-				issue_buffer.erase(issue_buffer.begin + i);
+				issue_buffer.erase(issue_buffer.begin() + i);
 			}
 			else
 				i++;
@@ -143,9 +150,9 @@ public:
 
 			//Adicionar controle de halt por preenchimento do issue buffer
 
-			Instruction pastInstruction = virtual_buffer.front();
-			issue_buffer.push_back(pastInstruction);
-			pastInstruction.erase(virtual_buffer.begin());
+			Instruction inst = virtual_buffer.front();
+			virtual_buffer.pop_front();
+			issue_buffer.push_back(inst);
 
 			fetch_counter = (fetch_counter + 1) % fetch_window_size;
 		}
@@ -169,7 +176,9 @@ void dinero_dump_write(int address)
 
 void dinero_dump_fetch(int pc)
 {
+  #ifdef TRACE
   dinero_trace << "2 " << hex << pc << endl;
+  #endif
 }
 
 //!Generic instruction behavior method.
@@ -184,20 +193,44 @@ void ac_behavior( instruction )
 #endif 
 };
  
+superscalar_pipeline pipeline(4, 10, 32);
+
 //! Instruction Format behavior methods.
 void ac_behavior( Type_R )
 {
+#ifdef SUPERSCALAR
+	Instruction inst;
+
+	inst.reads.push_back(rt);
+	inst.reads.push_back(rs);
+	inst.writes.push_back(rd);
+	pipeline.add_instruction(inst);
+#endif
 }
 void ac_behavior( Type_I )
 {
+#ifdef SUPERSCALAR
+	Instruction inst;
+
+	inst.reads.push_back(rs);
+	inst.writes.push_back(rt);
+	pipeline.add_instruction(inst);
+#endif
 }
 void ac_behavior( Type_J )
 {
+#ifdef SUPERSCALAR
+	Instruction inst;
+
+	pipeline.add_instruction(inst);
+#endif
 }
  
 //!Behavior called before starting simulation
 void ac_behavior(begin)
 {
+  printf("testing usual printf\n");
+
   dbg_printf("@@@ begin behavior @@@\n");
   RB[0] = 0;
   npc = ac_pc + 4;
@@ -221,12 +254,12 @@ void ac_behavior(begin)
 //!Behavior called after finishing simulation
 void ac_behavior(end)
 {
-  dbg_printf("INSTRUCTION COUNT: %d\n", instruction_count);	
-
   #ifdef TRACE
-  dbg_printf("closing trace file...\n");
   dinero_trace.close();
   #endif
+
+  dbg_printf("Original cycle count: %lld\n", ac_instr_counter);
+  dbg_printf("Superscalar cycle count: %d\n", pipeline.cycle_count);
 
   dbg_printf("@@@ end behavior @@@\n");
 }
