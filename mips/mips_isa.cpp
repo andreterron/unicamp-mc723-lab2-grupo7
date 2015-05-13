@@ -193,7 +193,16 @@ void ac_behavior( instruction )
 #endif 
 };
  
-superscalar_pipeline pipeline(4, 10, 32);
+superscalar_pipeline pipeline1(4, 4, 10);
+superscalar_pipeline pipeline2(4, 8, 10);
+superscalar_pipeline pipeline3(4, 10, 10);
+superscalar_pipeline pipeline4(4, 4, 20);
+superscalar_pipeline pipeline5(4, 8, 20);
+superscalar_pipeline pipeline6(4, 20, 20);
+superscalar_pipeline pipeline7(8, 4, 20);
+superscalar_pipeline pipeline8(8, 8, 20);
+superscalar_pipeline pipeline9(8, 20, 20);
+
 
 //! Instruction Format behavior methods.
 void ac_behavior( Type_R )
@@ -204,7 +213,15 @@ void ac_behavior( Type_R )
 	inst.reads.push_back(rt);
 	inst.reads.push_back(rs);
 	inst.writes.push_back(rd);
-	pipeline.add_instruction(inst);
+	pipeline1.add_instruction(inst);
+	pipeline2.add_instruction(inst);
+	pipeline3.add_instruction(inst);
+	pipeline4.add_instruction(inst);
+	pipeline5.add_instruction(inst);
+	pipeline6.add_instruction(inst);
+	pipeline7.add_instruction(inst);
+	pipeline8.add_instruction(inst);
+	pipeline9.add_instruction(inst);
 #endif
 }
 void ac_behavior( Type_I )
@@ -214,7 +231,15 @@ void ac_behavior( Type_I )
 
 	inst.reads.push_back(rs);
 	inst.writes.push_back(rt);
-	pipeline.add_instruction(inst);
+	pipeline1.add_instruction(inst);
+	pipeline2.add_instruction(inst);
+	pipeline3.add_instruction(inst);
+	pipeline4.add_instruction(inst);
+	pipeline5.add_instruction(inst);
+	pipeline6.add_instruction(inst);
+	pipeline7.add_instruction(inst);
+	pipeline8.add_instruction(inst);
+	pipeline9.add_instruction(inst);
 #endif
 }
 void ac_behavior( Type_J )
@@ -222,7 +247,15 @@ void ac_behavior( Type_J )
 #ifdef SUPERSCALAR
 	Instruction inst;
 
-	pipeline.add_instruction(inst);
+	pipeline1.add_instruction(inst);
+	pipeline2.add_instruction(inst);
+	pipeline3.add_instruction(inst);
+	pipeline4.add_instruction(inst);
+	pipeline5.add_instruction(inst);
+	pipeline6.add_instruction(inst);
+	pipeline7.add_instruction(inst);
+	pipeline8.add_instruction(inst);
+	pipeline9.add_instruction(inst);
 #endif
 }
  
@@ -259,7 +292,15 @@ void ac_behavior(end)
   #endif
 
   dbg_printf("Original cycle count: %lld\n", ac_instr_counter);
-  dbg_printf("Superscalar cycle count: %d\n", pipeline.cycle_count);
+  dbg_printf("Superscalar cycle count: %d\n", pipeline1.cycle_count);
+  dbg_printf("Superscalar cycle count: %d\n", pipeline2.cycle_count);
+  dbg_printf("Superscalar cycle count: %d\n", pipeline3.cycle_count);
+  dbg_printf("Superscalar cycle count: %d\n", pipeline4.cycle_count);
+  dbg_printf("Superscalar cycle count: %d\n", pipeline5.cycle_count);
+  dbg_printf("Superscalar cycle count: %d\n", pipeline6.cycle_count);
+  dbg_printf("Superscalar cycle count: %d\n", pipeline7.cycle_count);
+  dbg_printf("Superscalar cycle count: %d\n", pipeline8.cycle_count);
+  dbg_printf("Superscalar cycle count: %d\n", pipeline9.cycle_count);
 
   dbg_printf("@@@ end behavior @@@\n");
 }
