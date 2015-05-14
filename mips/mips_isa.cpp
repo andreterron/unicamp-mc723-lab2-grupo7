@@ -24,6 +24,8 @@
 #include  "mips_isa_init.cpp"
 #include  "mips_bhv_macros.H"
 
+#define MC723_OUTPUT_BRANCHES_ENV "MC723_OUTPUT_BRANCHES"
+
 #include "prediction/PredictionOracle.cpp"
 #include "prediction/BranchPredictor.cpp"
 #include "prediction/StaticPredictor.cpp"
@@ -31,7 +33,7 @@
 #include "prediction/TwoBitPredictor.cpp"
 
 //Macro for enabling memory tracing
-#define TRACE
+//#define TRACE
 
 //If you want debug information for this model, uncomment next line
 //#define DEBUG_MODEL
@@ -120,9 +122,35 @@ void ac_behavior(begin)
 
 }
 
+void export_branch_prediction_results()
+{
+  char* branch_out = secure_getenv(MC723_OUTPUT_BRANCHES_ENV);  
+  char tmp[1024];
+  char cmd[2048];
+  if ( branch_out != NULL && strcmp(branch_out,"") != 0 ) {
+    snprintf(tmp, 1023, "%s", branch_out);
+  } else {
+    snprintf(tmp, 1023, "/tmp/branch_output");
+  }
+  snprintf(cmd, 2047, "mkdir -p \"%s\"", tmp); 
+  
+  std::cout << "Creating directory " << tmp << std::endl
+            << "$ " << cmd << std::endl;
+
+  int err = system(cmd);
+  if ( err != 0 ) {
+    std::cerr << "Cannot create directory " << tmp << " (error " << err << ")" << std::endl;
+  } else {
+    gPrediction.ExportEach(tmp);
+    std::cout << "Branch prediction results exported to " << tmp << std::endl;
+  }
+}
+
 //!Behavior called after finishing simulation
 void ac_behavior(end)
-{
+{ 
+  export_branch_prediction_results();
+
   dbg_printf("INSTRUCTION COUNT: %d\n", instruction_count);	
 
   #ifdef TRACE

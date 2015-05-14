@@ -1,5 +1,12 @@
 #include "prediction/BranchPredictor.h"
 
+BranchPredictor::BranchPredictor(void)
+    :   mHitCount(0)
+    ,   mBranchCount(0)
+{}
+BranchPredictor::~BranchPredictor(void)
+{}
+
 void BranchPredictor::Hit(const bool branched)
 {
     IncreaseBranchCount();
@@ -7,6 +14,19 @@ void BranchPredictor::Hit(const bool branched)
         IncreaseHitCount();
     }
     Update(branched);
+}
+
+void BranchPredictor::ExportResults(const std::string& filename) const
+{
+    std::fstream file(filename);
+
+    AppendResults(file);
+}
+
+void BranchPredictor::AppendResults(std::ostream& output) const
+{
+    output  << "Branch count: "             << mBranchCount << std::endl
+            << "Successful predictions: "   << mHitCount    << std::endl;
 }
 
 void BranchPredictor::IncreaseBranchCount(void)

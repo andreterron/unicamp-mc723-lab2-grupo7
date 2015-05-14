@@ -11,7 +11,7 @@ public:
     StaticPredictor(void) {}
     virtual ~StaticPredictor(void) {}
 
-    virtual void AddInstruction(const void* instruction) { return; }
+    virtual void AddInstruction(const Instruction* instruction) { return; }
     virtual bool WouldBranch(void) const { return _Prediction; }
     virtual void Update(const bool branched) { return; }    
 };

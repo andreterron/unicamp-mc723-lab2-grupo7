@@ -1,16 +1,21 @@
 #ifndef _BRANCHPREDICTOR_H_
 #define _BRANCHPREDICTOR_H_
 
+#include "prediction/Instruction.h"
+
 class BranchPredictor
 {
 public:
-    BranchPredictor(void) {}
-    virtual ~BranchPredictor(void) {}
+    BranchPredictor(void);
+    virtual ~BranchPredictor(void);
 
-    virtual void AddInstruction(const void* instruction)  = 0;
+    virtual void AddInstruction(const Instruction* instruction)  = 0;
     virtual bool WouldBranch(void) const = 0;
 
     void Hit(const bool branched);
+
+    void ExportResults(const std::string& filename) const;
+    void AppendResults(std::ostream& output) const;
 
 protected:
     virtual void Update(const bool branched) = 0;
