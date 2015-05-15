@@ -12,23 +12,40 @@ if [ "$2" == "-i" ] || [ "$2" == "-v" ]; then
 fi
 
 
+if [ $N -ge 4 ]; then
+	N= expr $N - 3
+	PROCESSOR="2"
+fi
+
+
 for i in `seq 1 $N`;
 do
 	if [ "$i" == "1" ]; then
 
 		# ARGUMENTS FOR L1 CACHE
-		ARGS="$ARGS -l$i-dsize 1K -l$i-isize 1K -l$i-ibsize 16 -l$i-dbsize 8"
+		if [ -z $PROCESSOR ]; then
+			ARGS="$ARGS -l$i-dsize 1K -l$i-isize 1K -l$i-ibsize 16 -l$i-dbsize 8"
+		else
+			ARGS="$ARGS -l$i-dsize 2K -l$i-isize 2K -l$i-ibsize 16 -l$i-dbsize 8"
+		fi
 
 	elif [ "$i" == "2" ]; then
 
 		# ARGUMENTS FOR L2 CACHE
-		ARGS="$ARGS -l$i-dsize 2K -l$i-isize 2K -l$i-ibsize 32 -l$i-dbsize 32"
+		if [ -z $PROCESSOR ]; then
+			ARGS="$ARGS -l$i-dsize 2K -l$i-isize 2K -l$i-ibsize 16 -l$i-dbsize 8"
+		else
+			ARGS="$ARGS -l$i-dsize 4K -l$i-isize 4K -l$i-ibsize 32 -l$i-dbsize 32"
+		fi
 
 	elif [ "$i" == "3" ]; then
 
 		# ARGUMENTS FOR L3 CACHE
-		ARGS="$ARGS -l$i-dsize 8K -l$i-isize 8K -l$i-ibsize 64 -l$i-dbsize 64"
-
+		if [ -z $PROCESSOR ]; then
+			ARGS="$ARGS -l$i-dsize 4K -l$i-isize 4K -l$i-ibsize 16 -l$i-dbsize 8"
+		else
+			ARGS="$ARGS -l$i-dsize 8K -l$i-isize 8K -l$i-ibsize 64 -l$i-dbsize 64"
+		fi
 	fi
 done
 
@@ -56,15 +73,25 @@ fi
 TYPE=0
 LEVEL=1
 TYPE_NAME=""
-
-ACCESS_COST_D[1]=1   # L1 data
-ACCESS_COST_I[1]=2   # L1 instruction
-ACCESS_COST_D[2]=6  # L2 data
-ACCESS_COST_I[2]=8  # L2 instruction
-ACCESS_COST_D[3]=18 # L3 data
-ACCESS_COST_I[3]=24 # L3 instruction
-ACCESS_COST_D[4]=100 # MEM data
-ACCESS_COST_I[4]=120 # MEM instruction
+if [ -z PROCESSOR ]; then
+	ACCESS_COST_D[1]=1   # L1 data
+	ACCESS_COST_I[1]=2   # L1 instruction
+	ACCESS_COST_D[2]=6  # L2 data
+	ACCESS_COST_I[2]=8  # L2 instruction
+	ACCESS_COST_D[3]=18 # L3 data
+	ACCESS_COST_I[3]=24 # L3 instruction
+	ACCESS_COST_D[4]=100 # MEM data
+	ACCESS_COST_I[4]=120 # MEM instruction
+else
+	ACCESS_COST_D[1]=1   # L1 data
+	ACCESS_COST_I[1]=2   # L1 instruction
+	ACCESS_COST_D[2]=6  # L2 data
+	ACCESS_COST_I[2]=8  # L2 instruction
+	ACCESS_COST_D[3]=18 # L3 data
+	ACCESS_COST_I[3]=24 # L3 instruction
+	ACCESS_COST_D[4]=100 # MEM data
+	ACCESS_COST_I[4]=120 # MEM instruction
+fi	
 COST=0
 LEVEL_COST=0
 
