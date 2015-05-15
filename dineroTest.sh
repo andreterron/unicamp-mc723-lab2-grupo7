@@ -3,7 +3,7 @@
 # Prepare dinero command
 #===========================
 
-N=$1
+PROC=$1
 ARGS=""
 
 INPUT="mips/trace.din"
@@ -11,50 +11,47 @@ if [ "$2" == "-i" ] || [ "$2" == "-v" ]; then
 	INPUT="$3"
 fi
 
+if [ "$PROC" == "-C1" ]; then
+	N=1
+	i=$N
+	ARGS="$ARGS -l1-dsize 32K -l1-isize 32K -l1-ibsize 64 -l1-dbsize 64"
+	ARGS="$ARGS -l1-dassoc 4 -l1-iassoc 4"
+	ARGS="$ARGS -l1-drepl l -l1-irepl l"
+	
+elif [ "$PROC" == "-C2" ]; then
+	N=1
+	ARGS="$ARGS -l1-dsize 64K -l1-isize 64K -l1-ibsize 64 -l1-dbsize 64"
+	ARGS="$ARGS -l1-dassoc 4 -l1-iassoc 4"
+	ARGS="$ARGS -l1-drepl l -l1-irepl l"
+	
+elif [ "$PROC" == "-ARM" ]; then
+	N=2
+	ARGS="$ARGS -l1-dsize 32K -l1-isize 32K -l1-ibsize 64 -l1-dbsize 64"
+	ARGS="$ARGS -l1-dassoc 2 -l1-iassoc 2"
+	ARGS="$ARGS -l1-drepl l -l1-irepl l"
+	
+	ARGS="$ARGS -l2-dsize 1M -l2-isize 1M -l2-ibsize 64 -l2-dbsize 64"
+	ARGS="$ARGS -l2-dassoc 16 -l2-iassoc 16"
+	ARGS="$ARGS -l2-drepl l -l2-irepl l"
 
-if [ $N -ge 4 ]; then
-	N= expr $N - 3
-	PROCESSOR="2"
+elif [ "$PROC" == "-INTEL" ]; then
+	N=3
+	ARGS="$ARGS -l1-dsize 32K -l1-isize 32K -l1-ibsize 64 -l1-dbsize 64"
+	ARGS="$ARGS -l1-dassoc 8 -l1-iassoc 8"
+	ARGS="$ARGS -l1-drepl l -l1-irepl l"
+	
+	ARGS="$ARGS -l2-dsize 256K -l2-isize 256K -l2-ibsize 64 -l2-dbsize 64"
+	ARGS="$ARGS -l2-dassoc 8 -l2-iassoc 8"
+	ARGS="$ARGS -l2-drepl l -l2-irepl l"
+	
+	ARGS="$ARGS -l3-dsize 8M -l3-isize 8M -l3-ibsize 64 -l3-dbsize 64"
+
 fi
-
-
-for i in `seq 1 $N`;
-do
-	if [ "$i" == "1" ]; then
-
-		# ARGUMENTS FOR L1 CACHE
-		if [ -z $PROCESSOR ]; then
-			ARGS="$ARGS -l$i-dsize 1K -l$i-isize 1K -l$i-ibsize 16 -l$i-dbsize 8"
-		else
-			ARGS="$ARGS -l$i-dsize 2K -l$i-isize 2K -l$i-ibsize 16 -l$i-dbsize 8"
-		fi
-
-	elif [ "$i" == "2" ]; then
-
-		# ARGUMENTS FOR L2 CACHE
-		if [ -z $PROCESSOR ]; then
-			ARGS="$ARGS -l$i-dsize 2K -l$i-isize 2K -l$i-ibsize 16 -l$i-dbsize 8"
-		else
-			ARGS="$ARGS -l$i-dsize 4K -l$i-isize 4K -l$i-ibsize 32 -l$i-dbsize 32"
-		fi
-
-	elif [ "$i" == "3" ]; then
-
-		# ARGUMENTS FOR L3 CACHE
-		if [ -z $PROCESSOR ]; then
-			ARGS="$ARGS -l$i-dsize 4K -l$i-isize 4K -l$i-ibsize 16 -l$i-dbsize 8"
-		else
-			ARGS="$ARGS -l$i-dsize 8K -l$i-isize 8K -l$i-ibsize 64 -l$i-dbsize 64"
-		fi
-	fi
-done
 
 
 #===========================
 # Execute dinero command
 #===========================
-
-
 
 
 RAW=`./d4-7/dineroIV $ARGS -informat d < $INPUT`
