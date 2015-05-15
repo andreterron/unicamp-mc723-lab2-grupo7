@@ -34,4 +34,7 @@
 local-tests
 mips/*.din
 d4-7/*.din
+traces/*.tar.xz
 MipsMibench/**/*.din
+
+.DS_Store

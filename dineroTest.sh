@@ -5,6 +5,13 @@
 
 N=$1
 ARGS=""
+
+INPUT="mips/trace.din"
+if [ "$2" == "-i" ] || [ "$2" == "-v" ]; then
+	INPUT="$3"
+fi
+
+
 for i in `seq 1 $N`;
 do
 	if [ "$i" == "1" ]; then
@@ -33,9 +40,10 @@ done
 
 
 
-RAW=`./d4-7/dineroIV $ARGS -informat d < mips/trace.din`
+RAW=`./d4-7/dineroIV $ARGS -informat d < $INPUT`
 RES=` echo "$RAW" | grep 'Demand Misses'`
-#RES="$( ./d4-7/dineroIV $ARGS -informat d < mips/trace.din | grep 'Demand Misses' )"
+#echo "RES = $RES"
+#RES="$( ./d4-7/dineroIV $ARGS -informat d < $INPUT | grep 'Demand Misses' )"
 if [ "$2" == "-v" ]; then
 	echo "$RAW"
 	exit
@@ -60,6 +68,8 @@ ACCESS_COST_I[4]=120 # MEM instruction
 COST=0
 LEVEL_COST=0
 
+#echo "log2"
+
 for i in `seq 1 $N`;
 do
 	j=`expr $i + 1`
@@ -70,18 +80,21 @@ done
 MISS_COST_D[$N]=${ACCESS_COST_D[4]}
 MISS_COST_I[$N]=${ACCESS_COST_I[4]}
 
-
+#echo "log3"
 
 while read -r line; do
-	#echo "$line"
+	#echo "LINE = $line"
 	MISS=`expr "$line" : 'Demand Misses\s\+\([0-9]\+\)'`
+
+	#echo "log4, $MISS, $LEVEL, ${MISS_COST_D[$LEVEL]}"
 	if [ "$TYPE" == "0" ]; then
 		TYPE_NAME="data        "
-		LEVEL_COST=` expr $MISS \* ${MISS_COST_D[$LEVEL]}`
+		LEVEL_COST=` expr $MISS * ${MISS_COST_D[$LEVEL]}`
 	elif [ "$TYPE" == "1" ]; then
 		TYPE_NAME="instructions"
 		LEVEL_COST=` expr $MISS \* ${MISS_COST_I[$LEVEL]}`
 	fi
+	#echo "log5"
 	COST=` expr $COST + $LEVEL_COST`
 	echo "Cache L$LEVEL for $TYPE_NAME missed $MISS times, costing $LEVEL_COST cycles"
 	LEVEL=`expr $LEVEL + $TYPE`
