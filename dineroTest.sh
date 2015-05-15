@@ -84,17 +84,16 @@ MISS_COST_I[$N]=${ACCESS_COST_I[4]}
 
 while read -r line; do
 	#echo "LINE = $line"
-	MISS=`expr "$line" : 'Demand Misses\s\+\([0-9]\+\)'`
+	#MISS=`expr "$line" : 'Demand Misses *\([0-9]*\)'`
+	MISS=`echo "$line" | awk '{print $3}'`
 
-	#echo "log4, $MISS, $LEVEL, ${MISS_COST_D[$LEVEL]}"
 	if [ "$TYPE" == "0" ]; then
 		TYPE_NAME="data        "
-		LEVEL_COST=` expr $MISS * ${MISS_COST_D[$LEVEL]}`
+		LEVEL_COST=` expr $MISS \* ${MISS_COST_D[$LEVEL]}`
 	elif [ "$TYPE" == "1" ]; then
 		TYPE_NAME="instructions"
 		LEVEL_COST=` expr $MISS \* ${MISS_COST_I[$LEVEL]}`
 	fi
-	#echo "log5"
 	COST=` expr $COST + $LEVEL_COST`
 	echo "Cache L$LEVEL for $TYPE_NAME missed $MISS times, costing $LEVEL_COST cycles"
 	LEVEL=`expr $LEVEL + $TYPE`
