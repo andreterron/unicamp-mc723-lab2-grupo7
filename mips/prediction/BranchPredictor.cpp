@@ -1,5 +1,7 @@
 #include "prediction/BranchPredictor.h"
 
+#include <iomanip>
+
 BranchPredictor::BranchPredictor(void)
     :   mHitCount(0)
     ,   mBranchCount(0)
@@ -25,8 +27,13 @@ void BranchPredictor::ExportResults(const std::string& filename) const
 
 void BranchPredictor::AppendResults(std::ostream& output) const
 {
-    output  << "Branch count: "             << mBranchCount << std::endl
-            << "Successful predictions: "   << mHitCount    << std::endl;
+    output  << "BC: "   << std::setw(10) << mBranchCount << std::endl
+            << "SP: "   << std::setw(10) << mHitCount    
+            << " ("     << std::setfill(' ') 
+                        << std::setw(6) 
+                        << std::setprecision(2)
+                        << 100.0f * mHitCount / (1.0f * mBranchCount)
+            << "%)"     << std::endl;
 }
 
 void BranchPredictor::IncreaseBranchCount(void)

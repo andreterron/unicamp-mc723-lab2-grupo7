@@ -1,10 +1,26 @@
 #include "prediction/PredictionOracle.h"
 #include "prediction/BranchPredictor.h"
 
+#define SAFE_DELETE_ARRAY(ptr) \
+    do { \
+        if ( ptr != NULL ) { \
+            delete [] ptr; \
+            ptr = NULL; \
+        } \
+    } while (0)
+
 #define SAFE_DELETE(ptr) \
     do { \
         if ( ptr != NULL ) { \
             delete ptr; \
+            ptr = NULL; \
+        } \
+    } while (0)
+
+#define SAFE_FREE(ptr) \
+    do { \
+        if ( ptr != NULL ) { \
+            free(ptr); \
             ptr = NULL; \
         } \
     } while (0)
@@ -17,16 +33,16 @@ PredictionOracle::PredictionOracle(void)
 {
     mPredictorIds = new std::string[mBufferSize];
     mPredictors = new BranchPredictor*[mBufferSize];
+    memset(mPredictors, 0x0, mBufferSize * sizeof(BranchPredictor*));
 }
 
 PredictionOracle::~PredictionOracle(void)
 {
     for ( unsigned int i = 0; i < mNumPredictors; i++ ) {
-        BranchPredictor* bp = mPredictors[i];
-        SAFE_DELETE(bp);
+        SAFE_DELETE(mPredictors[i]);
     }
-    SAFE_DELETE(mPredictorIds);
-    SAFE_DELETE(mPredictors);
+    SAFE_DELETE_ARRAY(mPredictors);
+    SAFE_DELETE_ARRAY(mPredictorIds);
 }
 
 bool PredictionOracle::AddPredictor(const std::string& id, BranchPredictor* predictor)
@@ -62,14 +78,14 @@ bool PredictionOracle::AddPredictor(const std::string& id, BranchPredictor* pred
                 std::string* tmp = s_tmp;
                 s_tmp = mPredictorIds;
                 mPredictorIds = tmp;
-                SAFE_DELETE(tmp);
+                SAFE_DELETE_ARRAY(tmp);
             }
             
             {
                 BranchPredictor** tmp = bp_tmp;
                 bp_tmp = mPredictors;
                 mPredictors = tmp;
-                SAFE_DELETE(tmp);
+                SAFE_DELETE_ARRAY(tmp);
             }
             mBufferSize = bs_new;
         }
@@ -83,10 +99,9 @@ bool PredictionOracle::AddPredictor(const std::string& id, BranchPredictor* pred
 bool PredictionOracle::RemovePredictor(const std::string& id)
 {
     for ( unsigned int i = 0; i < mNumPredictors; i++ ) {
-        BranchPredictor* bp = mPredictors[i];
-        std::string&     l_id = mPredictorIds[i];
+        std::string& l_id = mPredictorIds[i];
         if ( id.compare(l_id) == 0 ) {
-            SAFE_DELETE(bp);
+            SAFE_DELETE(mPredictors[i]);
             l_id.clear();
             return true;
         }
