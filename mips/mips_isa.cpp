@@ -52,6 +52,7 @@ using namespace std;
 #ifdef TRACE
 ofstream dinero_trace;
 #endif
+
 static int processors_started = 0;
 int instruction_count = 0;
 #define DEFAULT_STACK_SIZE (256*1024)
@@ -74,7 +75,9 @@ void dinero_dump_write(int address)
 
 void dinero_dump_fetch(int pc)
 {
+  #ifdef TRACE
   dinero_trace << "2 " << hex << pc << endl;
+  #endif
 }
 
 //!Generic instruction behavior method.
@@ -97,8 +100,8 @@ void ac_behavior( Type_J ){}
 //!Behavior called before starting simulation
 void ac_behavior(begin)
 {
-  gPrediction.AddPredictor("static_branch", new StaticPredictorBranch);
-  gPrediction.AddPredictor("static_nobranch", new StaticPredictorNoBranch);
+  //gPrediction.AddPredictor("static_branch", new StaticPredictorBranch);
+  //gPrediction.AddPredictor("static_nobranch", new StaticPredictorNoBranch);
   gPrediction.AddPredictor("onebit", new OneBitPredictor);
   gPrediction.AddPredictor("twobit", new TwoBitPredictor);
 
