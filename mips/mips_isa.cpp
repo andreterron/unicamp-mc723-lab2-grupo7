@@ -26,6 +26,9 @@
 
 #include <unordered_map>
 #include <deque>
+#include <iostream>
+#include <fstream>
+
 
 //Macro for enabling memory tracing
 //#define TRACE
@@ -34,7 +37,7 @@
 #define SUPERSCALAR
 
 //If you want debug information for this model, uncomment next line
-#define DEBUG_MODEL
+//#define DEBUG_MODEL
 #include "ac_debug_model.H"
 
 
@@ -49,6 +52,8 @@ using namespace std;
 
 #ifdef TRACE
 ofstream dinero_trace;
+stringstream stream;
+char mybuffer [1024*1024];
 #endif
 static int processors_started = 0;
 int instruction_count = 0;
@@ -56,8 +61,9 @@ int instruction_count = 0;
 
 class Instruction {
 public:
-	vector<int> reads;
-	vector<int> writes;
+	int rd = -1;
+	int rs = -1;
+	int rt = -1;
 };
 
 class superscalar_pipeline {
@@ -67,8 +73,8 @@ public:
 	int max_issue_buffer_size;
 	int cycle_count = 0;
 	int number_of_live_funits = 0;
-	unordered_map<int, Instruction> readMap;
-	unordered_map<int, Instruction> writeMap;
+	unordered_map<short, bool> readMap;
+	unordered_map<short, bool> writeMap;
 	deque<Instruction> issue_buffer;
 	deque<Instruction> virtual_buffer;
 
@@ -79,38 +85,53 @@ public:
 		fetch_window_size = fetch_size;
 	}
 
-	void core_add_instruction (Instruction inst)
-	{
-	}
-
 	bool trulyDependsOfSomeone(Instruction inst)
 	{
-		for (int pos: inst.reads)
-		{
-			if (writeMap.find(pos) != writeMap.end())
-				return true;
-		}
+		int& rd = inst.rd;
+		int& rs = inst.rs;
+		int& rt = inst.rt;
+
+		if (rs != -1 && writeMap.find(rs) != writeMap.end())
+			return true;
+		if (rt != -1 && writeMap.find(rt) != writeMap.end())
+			return true;
 		return false;
 	}
 
 	bool falselyDependsOfsomeone(Instruction inst)
 	{
-		for (int pos: inst.writes)
-		{
-			if (writeMap.find(pos) != writeMap.end())
-				return true;
-			if (readMap.find(pos) != readMap.end())
-				return true;
-		}
+		int& rd = inst.rd;
+		int& rs = inst.rs;
+		int& rt = inst.rt;
+
+		if (rd != -1 && (writeMap.find(rd) != writeMap.end() || readMap.find(rd) != readMap.end()))
+			return true;
 		return false;	
+	}
+
+	void finish_issuing()
+	{
+		while (issue_buffer.size() > 0)
+		{
+			cycle_count++;			
+			readMap.clear();
+			writeMap.clear();
+			issue_pending_instructions();
+		}
 	}
 
 	void make_reg_owner(Instruction inst)
 	{
-		for (int pos: inst.reads)
-			readMap[pos] = inst;
-		for (int pos: inst.writes)
-			writeMap[pos] = inst;
+		int& rd = inst.rd;
+		int& rs = inst.rs;
+		int& rt = inst.rt;
+	
+		if (rs != -1)
+			readMap[rs] = true;
+		if (rt != -1)
+			readMap[rt] = true;
+		if (rd != -1)
+			writeMap[rd] = true;
 	}
 
 	void issue_pending_instructions()
@@ -209,10 +230,10 @@ void ac_behavior( Type_R )
 {
 #ifdef SUPERSCALAR
 	Instruction inst;
+	inst.rt = rt;
+	inst.rs = rs;
+	inst.rd = rd;
 
-	inst.reads.push_back(rt);
-	inst.reads.push_back(rs);
-	inst.writes.push_back(rd);
 	pipeline1.add_instruction(inst);
 	pipeline2.add_instruction(inst);
 	pipeline3.add_instruction(inst);
@@ -228,9 +249,9 @@ void ac_behavior( Type_I )
 {
 #ifdef SUPERSCALAR
 	Instruction inst;
+	inst.rs = rs;
+	inst.rd = rt;
 
-	inst.reads.push_back(rs);
-	inst.writes.push_back(rt);
 	pipeline1.add_instruction(inst);
 	pipeline2.add_instruction(inst);
 	pipeline3.add_instruction(inst);
@@ -262,15 +283,16 @@ void ac_behavior( Type_J )
 //!Behavior called before starting simulation
 void ac_behavior(begin)
 {
-  printf("testing usual printf\n");
-
   dbg_printf("@@@ begin behavior @@@\n");
   RB[0] = 0;
   npc = ac_pc + 4;
 
   //Opening file for tracing
   #ifdef TRACE
-  dinero_trace.open("/tmp/trace.din");
+  dinero_trace.open("trace.din");
+  dinero_trace.rdbuf()->pubsetbuf(mybuffer, 1024*1024);
+  dinero_trace.rdbuf();
+	
   #endif 
 
   // Is is not required by the architecture, but makes debug really easier
@@ -288,19 +310,31 @@ void ac_behavior(begin)
 void ac_behavior(end)
 {
   #ifdef TRACE
+  //dinero_trace << stream.str();
   dinero_trace.close();
   #endif
 
-  dbg_printf("Original cycle count: %lld\n", ac_instr_counter);
-  dbg_printf("Superscalar cycle count: %d\n", pipeline1.cycle_count);
-  dbg_printf("Superscalar cycle count: %d\n", pipeline2.cycle_count);
-  dbg_printf("Superscalar cycle count: %d\n", pipeline3.cycle_count);
-  dbg_printf("Superscalar cycle count: %d\n", pipeline4.cycle_count);
-  dbg_printf("Superscalar cycle count: %d\n", pipeline5.cycle_count);
-  dbg_printf("Superscalar cycle count: %d\n", pipeline6.cycle_count);
-  dbg_printf("Superscalar cycle count: %d\n", pipeline7.cycle_count);
-  dbg_printf("Superscalar cycle count: %d\n", pipeline8.cycle_count);
-  dbg_printf("Superscalar cycle count: %d\n", pipeline9.cycle_count);
+  #ifdef SUPERSCALAR
+  pipeline1.finish_issuing();
+  pipeline2.finish_issuing();
+  pipeline3.finish_issuing();
+  pipeline4.finish_issuing();
+  pipeline5.finish_issuing();
+  pipeline6.finish_issuing();
+  pipeline7.finish_issuing();
+  pipeline8.finish_issuing();
+  pipeline9.finish_issuing();
+  printf("Original cycle count: %lld\n", ac_instr_counter);
+  printf("Superscalar cycle count: %d\n", pipeline1.cycle_count);
+  printf("Superscalar cycle count: %d\n", pipeline2.cycle_count);
+  printf("Superscalar cycle count: %d\n", pipeline3.cycle_count);
+  printf("Superscalar cycle count: %d\n", pipeline4.cycle_count);
+  printf("Superscalar cycle count: %d\n", pipeline5.cycle_count);
+  printf("Superscalar cycle count: %d\n", pipeline6.cycle_count);
+  printf("Superscalar cycle count: %d\n", pipeline7.cycle_count);
+  printf("Superscalar cycle count: %d\n", pipeline8.cycle_count);
+  printf("Superscalar cycle count: %d\n", pipeline9.cycle_count);
+  #endif
 
   dbg_printf("@@@ end behavior @@@\n");
 }
